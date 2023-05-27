@@ -14,30 +14,8 @@ function randomSequenceGenerator() {
                 seq.pop();
             }
         },
-        compare: (inputSeq) => {
-            if(inputSeq.length > seq.length) {
-                //Game already over
-                return +1; //No match
-            }
-            
-            if(inputSeq.length < seq.length) {
-                for(let i=0; i<inputSeq.length; i++) {
-                    if(seq[i] !== inputSeq[i]) {
-                        return +1; //No match, game over
-                    }
-                }
-                return -1; // wait for more input
-            }
-
-            for(let i=0; i<seq.length; i++) {
-                if(seq[i] !== inputSeq[i]) {
-                    return +1; //No match
-                }
-            }
-            return 0; // exact match, move to next level
-        },
-        getSeqLength: () => seq.length,
-        readSeq: () => seq
+        compare: (index, inputColor) => index < seq.length && seq[index] === inputColor,
+        getLength: () => seq.length
     }
 }
 
@@ -51,7 +29,7 @@ function inputSequence() {
                 inputSeq.pop();
             }
         },
-        getSeq : () => inputSeq
+        getLength: () => inputSeq.length
     }
 }
 
@@ -64,23 +42,24 @@ const audios = {
 };
 const pattern = randomSequenceGenerator();
 const input = inputSequence();
+const delay = ms => new Promise(res => setTimeout(res, ms));
 let gameOn = false;
 
-function autoGenerateNextAction() {
+const autoGenerateNextAction = async () => {
     input.reset();
     const nextColor = pattern.next();
-    console.log("Current pattern");
-    console.log(pattern.readSeq());
     const nextButtonId = "#" + nextColor;
-    $("#level-title").text("Level " + pattern.getSeqLength());
+    await delay(500);
+    $("#level-title").text("Level " + pattern.getLength()).delay(1000);
+    
     audios[nextColor].play();
-    $(nextButtonId).addClass("pressed").delay(1000).queue(function( next ){
+    $(nextButtonId).addClass("pressed").delay(100).queue(function( next ){
         $(this).removeClass('pressed'); 
         next();
     });
 }
 
-function gameOverAction() {
+const gameOverAction = () => {
     audios.wrong.play();
     input.reset();
     pattern.reset();
@@ -89,16 +68,15 @@ function gameOverAction() {
 }
 
 $(".btn").click(function(){
-    audios[this.id].play();
     if(gameOn) {
-        console.log("Game is on");
+        audios[this.id].play();
         input.add(this.id);
-        if(res === 0) {
-            autoGenerateNextAction();
-        }
-        else if(res > 0) {
-            //Game Over
+        let res = pattern.compare(input.getLength()-1, this.id);
+        if(input.getLength > pattern.getLength || !res) {
             gameOverAction();
+        }
+        else if(input.getLength() === pattern.getLength() && res) {
+            autoGenerateNextAction();
         }
     }
 })
@@ -106,6 +84,6 @@ $(".btn").click(function(){
 $(document).keypress(function() {
     if(!gameOn) {
         gameOn =true;
+        autoGenerateNextAction();
     }
-    autoGenerateNextAction();
 })
